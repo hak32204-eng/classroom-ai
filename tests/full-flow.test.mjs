@@ -93,6 +93,12 @@ test('official OAuth provider + D1: consent, Google identity, tokens, isolation,
     assert.equal((await send(env,'/oauth/token',form({grant_type:'authorization_code',client_id:client.client_id,code,code_verifier:flow.verifier,redirect_uri:'https://client.example/callback'}))).status,400);
     const courses=await (await tool(env,token.access_token,'list_courses')).json();assert.match(courses.result.content[0].text,/Only alice/);
     const assignment=await (await tool(env,token.access_token,'get_assignment',{courseId:'course',assignmentId:'assignment'})).json();assert.match(assignment.result.content[0].text,/Assignment alice/);
+    const secondAliceClient=await register(env),secondAliceJar=jar(),secondAliceFlow=await start(env,secondAliceClient,secondAliceJar);
+    nonces.set('alice',secondAliceFlow.google.searchParams.get('nonce'));
+    const secondAliceCallback=await send(env,'/auth/google/callback?'+new URLSearchParams({code:'alice',state:secondAliceFlow.google.searchParams.get('state')}),{},secondAliceJar);
+    const secondAliceToken=await redeem(env,secondAliceClient,secondAliceFlow,new URL(secondAliceCallback.headers.get('location')).searchParams.get('code'));
+    const firstClientStillWorks=await (await tool(env,token.access_token,'list_courses')).json();assert.match(firstClientStillWorks.result.content[0].text,/Only alice/);
+    const secondClientWorks=await (await tool(env,secondAliceToken.access_token,'list_courses')).json();assert.match(secondClientWorks.result.content[0].text,/Only alice/);
     const otherClient=await register(env),otherJar=jar(),otherFlow=await start(env,otherClient,otherJar);
     nonces.set('bob',otherFlow.google.searchParams.get('nonce'));
     const bobCallback=await send(env,'/auth/google/callback?'+new URLSearchParams({code:'bob',state:otherFlow.google.searchParams.get('state')}),{},otherJar);
@@ -110,6 +116,7 @@ test('official OAuth provider + D1: consent, Google identity, tokens, isolation,
     const noConfirm=await (await tool(env,freshToken.access_token,'disconnect_google')).json();assert.equal(noConfirm.error.code,-32602);
     const disconnected=await (await tool(env,freshToken.access_token,'disconnect_google',{confirm:true})).json();assert.match(disconnected.result.content[0].text,/"disconnected":true/);
     const accessAfter=await (await tool(env,token.access_token,'list_courses')).json();assert.equal(accessAfter.result.isError,true);
+    const secondClientAfter=await (await tool(env,secondAliceToken.access_token,'list_courses')).json();assert.equal(secondClientAfter.result.isError,true);
     const afterRefresh=await send(env,'/oauth/token',form({grant_type:'refresh_token',client_id:client.client_id,refresh_token:freshToken.refresh_token}));assert.equal(afterRefresh.status,400);
     assert.equal(sql.prepare('SELECT count(*) AS n FROM google_credentials').get().n,1);
     const storage=JSON.stringify(sql.prepare('SELECT * FROM oauth_kv').all())+JSON.stringify(sql.prepare('SELECT * FROM google_credentials').all());
@@ -124,6 +131,13 @@ test('official OAuth provider + D1: consent, Google identity, tokens, isolation,
     assert.equal((await send(env,'/account/disconnect',form({csrf}),otherJar)).status,200);
     assert.equal(sql.prepare('SELECT count(*) AS n FROM google_credentials').get().n,0);
     const bobRemoved=await (await tool(env,bobToken.access_token,'list_courses')).json();assert.equal(bobRemoved.result.isError,true);
+    const reconnectFlow=await start(env,secondAliceClient,secondAliceJar);
+    nonces.set('alice',reconnectFlow.google.searchParams.get('nonce'));
+    const reconnectCallback=await send(env,'/auth/google/callback?'+new URLSearchParams({code:'alice',state:reconnectFlow.google.searchParams.get('state')}),{},secondAliceJar);
+    const reconnectToken=await redeem(env,secondAliceClient,reconnectFlow,new URL(reconnectCallback.headers.get('location')).searchParams.get('code'));
+    const reconnected=await (await tool(env,reconnectToken.access_token,'list_courses')).json();assert.match(reconnected.result.content[0].text,/Only alice/);
+    const oldGrantAfterReconnect=await tool(env,secondAliceToken.access_token,'list_courses');
+    assert.ok(oldGrantAfterReconnect.status===401 || (oldGrantAfterReconnect.status===200 && (await oldGrantAfterReconnect.json()).result?.isError===true));
   }finally{globalThis.fetch=original;sql.close();}
 });
 
