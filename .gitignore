@@ -218,3 +218,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Classroom AI TypeScript/Cloudflare
+node_modules/
+.wrangler/
+.dev.vars
+.env
+.env.*
+!.env.example
