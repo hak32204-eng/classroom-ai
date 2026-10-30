@@ -18,6 +18,8 @@ Google Classroom MCP connector for Cloudflare Workers and D1. A live test deploy
 
 MCP: `https://classroom-ai.hak32204.workers.dev/mcp`. Google callback: `https://classroom-ai.hak32204.workers.dev/auth/google/callback`.
 
+**For users:** [choose your client and connect](https://classroom-ai.hak32204.workers.dev/connect). One server URL and Google sign-in; no API keys or self-hosting required. ChatGPT is live-tested. LM Studio/Open WebUI setup profiles use documented MCP OAuth flows but are not yet live-tested with this server. LLaMA needs an MCP-capable host and a model capable of tool calling. OAuth handles ordinary refresh automatically; testing token expiry, revocation and client limits still require reconnection when applicable.
+
 ## Everyday requests
 
 Select Classroom AI in ChatGPT and ask, for example:
