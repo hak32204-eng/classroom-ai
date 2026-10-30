@@ -1,17 +1,31 @@
 # Classroom AI
 
-Google Classroom MCP connector for Cloudflare Workers and D1. This branch implements authorization and read-only tools. A live test deployment runs from `deploy/google-oauth-test`, with Google restricted to the owner's approved test users. Real Google sign-in, courses, assignment details and MCP refresh passed on 2026-10-30. **In-client ChatGPT/Claude compatibility is still pending.** This development branch defaults `AUTH_ENABLED` to `false`.
+Google Classroom MCP connector for Cloudflare Workers and D1. A live test deployment runs from `deploy/google-oauth-test`, with Google restricted to the owner's approved test users. Real Google sign-in, courses, assignment details and MCP refresh passed on 2026-10-30. ChatGPT installation and live course listing also passed; Claude compatibility remains pending. This development branch defaults `AUTH_ENABLED` to `false`.
 
 ## Implemented
 
 - OAuth server using pinned `@cloudflare/workers-oauth-provider`, dynamic client registration, resource discovery and mandatory PKCE S256.
 - Browser-bound consent and callback, verified Google OIDC identity/nonce, AES-GCM encrypted refresh tokens and per-account credential versions.
-- Tools: `connection_status`, `list_courses`, `list_assignments`, `get_assignment`, `disconnect_google` (requires `confirm: true`). No submissions or grading.
-- Classroom data is fetched on demand; attachment contents are not downloaded. No coursework, AI responses or Google access tokens are persisted.
-- Additional MCP clients can connect to the same Google account concurrently. Disconnect deletes local Google credentials and browser sessions, attempts Google revocation and denies all existing MCP grants data access/refresh. Reconnecting after revocation creates a new credential version and never restores access to the old grants.
-- Public privacy/deletion pages, bounded requests, rate limits and daily expired-record cleanup.
+- Tools: `connection_status`, `list_courses`, `search_assignments`, `list_assignments`, `get_assignment`, `disconnect_google` (requires `confirm: true`). No submissions or grading.
+- `search_assignments` returns a compact overview across active courses, sorted by deadline with undated work last. Optional filters: `query` (title/description), `course` (name/section), `dueFrom`/`dueTo` (inclusive UTC dates), `includeArchived` and `limit` (1–100, default 30). It reports truncation and unavailable courses explicitly. No submission/completion status is inferred. For local-day questions, clients must convert boundaries to UTC and inspect `dueAt`. More than 30 matching courses requires a narrower course filter.
+
+ - Classroom data is fetched on demand; attachment contents are not downloaded. No coursework, AI responses or Google access tokens are persisted.
+ - Additional MCP clients can connect to the same Google account concurrently. Disconnect deletes local Google credentials and browser sessions, attempts Google revocation and denies all existing MCP grants data access/refresh. Reconnecting after revocation creates a new credential version and never restores access to the old grants.
+ - Public privacy/deletion pages, bounded requests, rate limits and daily expired-record cleanup.
 
 MCP: `https://classroom-ai.hak32204.workers.dev/mcp`. Google callback: `https://classroom-ai.hak32204.workers.dev/auth/google/callback`.
+
+## Everyday requests
+
+Select Classroom AI in ChatGPT and ask, for example:
+
+- «Покажи ближайшие дедлайны по всем предметам».
+- «Найди ПР5 по компьютерным сетям».
+- «Покажи задания по SQL».
+- «Что задано на завтра? Мой часовой пояс — Москва».
+- «Покажи работы без срока сдачи» (the client filters the returned overview by `dueAt: null`; check truncation).
+
+The connector reads published assignments; it does not submit work, grade it or track personal completion.
 
 ## Development
 
