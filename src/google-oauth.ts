@@ -94,6 +94,7 @@ export async function exchangeGoogleCode(
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: form,
+    signal: AbortSignal.timeout(15000),
   });
   if (!response.ok) throw new Error("Google OAuth exchange failed");
   const data: unknown = await response.json();

@@ -1,50 +1,39 @@
 # Classroom AI
 
-Free Google Classroom MCP connector for ChatGPT and Claude — **early prototype**.
+Google Classroom MCP connector for Cloudflare Workers and D1. This branch implements authorization and read-only tools. **Production activation and real ChatGPT/Claude compatibility are still pending.** `AUTH_ENABLED` defaults to `false`.
 
-## What works now
+## Implemented
 
-A stateless Cloudflare Worker implementing a small subset of MCP (Streamable HTTP JSON-RPC): `initialize`, `ping`, `tools/list`, and `tools/call`. Two tools exist: `connection_status` and `list_courses`. The latter explicitly reports that Google is **not connected**.
+- OAuth server using pinned `@cloudflare/workers-oauth-provider`, dynamic client registration, resource discovery and mandatory PKCE S256.
+- Browser-bound consent and callback, verified Google OIDC identity/nonce, AES-GCM encrypted refresh tokens and per-account credential versions.
+- Tools: `connection_status`, `list_courses`, `list_assignments`, `get_assignment`, `disconnect_google` (requires `confirm: true`). No submissions or grading.
+- Classroom data is fetched on demand; attachment contents are not downloaded. No coursework, AI responses or Google access tokens are persisted.
+- Disconnect deletes local Google credentials and browser sessions, attempts Google revocation and denies existing MCP grants data access/refresh. Reconnecting invalidates previous client connections, which must authorize again.
+- Public privacy/deletion pages, bounded requests, rate limits and daily expired-record cleanup.
 
-**This is not yet a functioning Google Classroom integration.** It does not access anyone's courses, implement authentication, store tokens, or send assignments. Do not use it with real users until OAuth and authorization security have been implemented and verified.
+MCP: `https://classroom-ai.hak32204.workers.dev/mcp`. Google callback: `https://classroom-ai.hak32204.workers.dev/auth/google/callback`.
 
 ## Development
 
-Requirements: Node.js 20+ and a Cloudflare account.
+Use Node.js 24 (native TypeScript stripping, module hooks and SQLite in tests).
 
-```bash
-npm install
+```sh
+npm install --no-audit --no-fund
 npm run check
-npm run dev
+npm test
+npx wrangler deploy --dry-run
 ```
 
-Local endpoints: `http://localhost:8787/health` and `http://localhost:8787/mcp`.
+Tests use the real OAuth provider and SQLite SQL with mocked Google HTTP/JWK responses: two-account isolation, PKCE, browser binding, nonce checks, concurrent callback protection, code replay, refresh, revocation, validation and fail-closed setup. They do not prove real Google consent, Cloudflare runtime behavior or client compatibility. See [AUTH-SETUP.md](AUTH-SETUP.md) for the release checklist.
 
-Example request:
+## Limits and retention
 
-```bash
-curl -X POST http://localhost:8787/mcp \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}'
-```
+Testing-stage connector, not a verified public Google application. Google testing restrictions, Cloudflare quotas and AI client requirements still apply. There is no paid AI API; free-tier quotas do not guarantee zero hosting cost at arbitrary traffic.
 
-After testing, `npm run deploy` deploys a **nonfunctional Classroom placeholder** to Cloudflare Workers. Do not mistake a successful deployment for successful integration with ChatGPT, Claude, or Google.
+Stateless JSON Streamable HTTP; GET streaming is not implemented. DCR is supported; CIMD is disabled. List operations stop after 20 pages of 100 items, with a controlled error rather than silent truncation. Google requests time out after 15 seconds with no automatic quota retries. Each data tool refreshes its access token.
 
-## Privacy and security principles
+MCP access tokens last 15 minutes, refresh grants/registrations seven days, browser sessions 24 hours and consent transactions ten minutes. Daily cron removes expired technical records; backups have separate Cloudflare retention. Google credentials remain until disconnect or invalid-grant. Successful token redemptions have a replay fence; a lost response can require reconnection.
 
-- Never collect Google passwords or commit OAuth credentials to GitHub.
-- Request only necessary Google Classroom read-only scopes at first.
-- No permanent storage of coursework, grades, attachments, or AI answers.
-- Minimal encrypted authorization/session state if necessary; explicit account disconnection.
-- Strong per-user authorization and OAuth/PKCE + state validation are mandatory before real Classroom access.
-- No unconfirmed submission of student work.
+`src/google-link.ts` and `src/mcp-identity.ts` remain independently tested earlier helpers. Active HTTP routes use `authorization.ts`, `google-account.ts` and the official provider instead of accepting external identity JWTs.
 
-## Roadmap
-
-1. Implement standards-compliant MCP auth/OAuth discovery and secure user sessions.
-2. Configure Google Cloud OAuth and Classroom read-only permissions.
-3. Add real `list_courses`, `list_assignments`, `get_assignment` with pagination, retries and per-user isolation.
-4. Add integration/security tests and compatibility checks in ChatGPT and Claude.
-5. Deploy and prepare a privacy policy; pursue any needed Google verification.
-6. Consider optional background polling later, after a separate cost/security review.
+Never put secrets, private coursework or personal data in GitHub Issues or chat.

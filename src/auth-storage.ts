@@ -9,6 +9,7 @@ export interface PreparedStatement {
   bind(...values: (string | number)[]): PreparedStatement;
   run(): Promise<{ meta: { changes?: number } }>;
   first<T>(): Promise<T | null>;
+  all?<T>(): Promise<{ results: T[] }>;
 }
 export interface AuthDatabase {
   prepare(sql: string): PreparedStatement;

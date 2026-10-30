@@ -1,51 +1,56 @@
-# Этап привязки Google: внутренняя реализация
+# Настройка Classroom AI
 
-Это не готовый публичный коннектор. PR #3 остаётся черновиком; main не изменён.
+Код ветки реализует OAuth и MCP. Реальный вход Google и совместимость ChatGPT/Claude ещё не подтверждены. Успешная сборка не означает работающего подключения.
 
-`src/mcp-identity.ts` проверяет JWT через jose: подпись RS256/ES256, issuer,
-audience ресурса MCP, срок действия, iat, sub и scope classroom:read.
-Адрес JWKS задаётся оператором. Google access/id tokens для этого не подходят.
-Идентификатор хранения — SHA-256 от пары issuer/sub. Не принимайте userId из запроса.
+## Cloudflare и схема
 
-`src/google-link.ts` связывает проверенную личность с одноразовым state, PKCE
-и отдельным случайным секретом браузера. Подмена identity объектом отклоняется.
-Callback потребляет state до обмена кода: повтор после ошибки требует нового входа.
-Refresh token шифруется существующим AES-GCM хранилищем.
+Worker `classroom-ai`, адрес `https://classroom-ai.hak32204.workers.dev`. D1 `classroom-ai-auth`, ID `5e43b117-460c-46b5-bce2-baf65a2b073d`, binding `DB` подтверждён в Dashboard. Конфигурация ветки содержит эти значения и `AUTH_ENABLED="false"`.
 
-Маршруты намеренно не подключены. Для завершения HTTP-интеграции нужны:
+Владелец выполнил `0001_auth.sql` вручную. Для OAuth нужны также таблицы и поле credential_version из `migrations/0002_mcp.sql`.
 
-- OAuth 2.1 authorization server, выдающий токены для MCP, и resource metadata.
-- Проверенная браузерная сессия той же личности на start и callback.
-- POST start с проверкой Origin/CSRF; browserSecret только в Secure HttpOnly
-  SameSite=Lax cookie с префиксом __Host-, TTL 600 секунд и Path=/.
-- Ограничения частоты, очистка истёкших state, отзыв MCP-сессий и Google grants.
-- Проверка согласия, refresh lifecycle и тесты реальных клиентов.
-
-## D1: первый шаг владельца
-
-В каталоге проекта после установки Node.js/npm выполните:
-
-```powershell
+```sh
 npx wrangler login
-npx wrangler d1 create classroom-ai-auth
-```
-
-Сохраните выданный Cloudflare блок `[[d1_databases]]` в wrangler.toml,
-изменив binding на `DB`, и добавьте `migrations_dir = "migrations"`.
-Используйте только выданный database_id. Затем:
-
-```powershell
 npx wrangler d1 migrations apply DB --local
 npx wrangler d1 migrations apply DB --remote
 ```
 
-Удалённая D1 в этой сессии не проверена. Перед включением маршрутов проверьте
-атомарный DELETE RETURNING на реальной базе, повтор callback и два параллельных
-callback. Используйте primary session D1 для auth, без чтения устаревших реплик.
+Если `0002` выполнена вручную через Console, повторно её не запускайте: `ALTER TABLE ADD COLUMN` не идемпотентен. Сначала проверьте `PRAGMA table_info(google_credentials)` и список таблиц. Выполняйте только отсутствующие изменения; не удаляйте данные. `0001` использует `IF NOT EXISTS`.
 
-Через Worker Secrets задаются GOOGLE_CLIENT_SECRET и TOKEN_ENCRYPTION_KEY
-(32 случайных байта в base64). Секреты в чат и GitHub не отправлять.
-Настройка этих значений сама по себе не включает маршруты.
+OAuth KV-адаптер использует primary session D1. Callback потребляет transaction атомарным DELETE RETURNING; token endpoint ставит replay fence. Перед включением проверить эти операции и параллельные запросы на удалённой D1.
 
-Основание: https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization
-и https://developers.cloudflare.com/d1/sql-api/sql-statements/ .
+## Google и секреты
+
+В Google Cloud нужны включённый Classroom API, Web OAuth client и точный redirect URI:
+
+```text
+https://classroom-ai.hak32204.workers.dev/auth/google/callback
+```
+
+Для External/Testing добавьте аккаунт в test users. Проверяйте актуальные ограничения Google перед публичным выпуском. Разрешения: openid, classroom.courses.readonly, classroom.coursework.me.readonly.
+
+В Worker → Settings → Runtime variables and secrets задайте:
+
+- GOOGLE_CLIENT_ID — ID Web OAuth клиента.
+- GOOGLE_CLIENT_SECRET — тип Secret, значение из Google Cloud.
+- TOKEN_ENCRYPTION_KEY — тип Secret, 32 криптографически случайных байта в base64.
+
+Вводите секреты напрямую в Cloudflare. Не отправляйте их в чат, GitHub или логи. При утечке client secret замените его в Google Cloud. Смена ключа шифрования без миграции credentials потребует повторного подключения пользователей.
+
+CLI поддерживает интерактивные `npx wrangler secret put GOOGLE_CLIENT_SECRET`, `npx wrangler secret put TOKEN_ENCRYPTION_KEY`, `npx wrangler secret put GOOGLE_CLIENT_ID`.
+
+Пока AUTH_ENABLED=false, защищённые маршруты возвращают 503. Health и информационные страницы доступны.
+
+## Выпуск
+
+1. Завершить TypeScript, тесты и Wrangler dry-run в PR. Проверить удалённую схему. Не сливать черновик ради запуска.
+2. Развернуть проверенную ветку с выключенной авторизацией. Проверить /health, /privacy, /delete-data и ответ 503 от /mcp.
+3. После задания секретов и готовности владельца к личному тесту изменить AUTH_ENABLED на true в конфигурации выпуска и развернуть.
+4. Проверить discovery, DCR, PKCE, resource, отклонение неверных redirect URI/Origin/cookie и повторов code/state. Пройти Google consent тестового аккаунта. Google-токены нельзя использовать как MCP bearer tokens.
+5. Добавить в MCP-клиент сервер с URL https://classroom-ai.hak32204.workers.dev/mcp и OAuth. Проверить реальные собственные курсы, задания, refresh и переподключение отдельно в ChatGPT и Claude.
+6. Вторым тестовым аккаунтом проверить изоляцию. После disconnect_google с подтверждением старые токены не должны давать данные, refresh должен отклоняться, другой аккаунт должен продолжать работать.
+7. Проверить /account, браузерное удаление и Google revoke. Запасной путь отзыва: https://myaccount.google.com/permissions . Повторное подключение должно инвалидировать предыдущие клиенты.
+8. Проверить cron `17 3 * * *` и удаление истёкших записей. Затем решать вопрос публичного выпуска и Google verification. Не включать логи с code/state/cookies/tokens.
+
+Откат: выключить AUTH_ENABLED и развернуть проверенную версию. Это блокирует доступ, но не отзывает Google grants. Не удалять D1.
+
+Основание: [Cloudflare OAuth provider](https://github.com/cloudflare/workers-oauth-provider), [MCP authorization](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization), [ChatGPT OAuth](https://developers.openai.com/plugins/build/auth).

@@ -17,16 +17,23 @@ export interface ClassroomAssignment {
   dueDate?: { year: number; month: number; day: number };
   dueTime?: { hours?: number; minutes?: number };
   workType?: string;
+  alternateLink?: string;
+  materials?: unknown[];
 }
 async function apiGet<T>(path: string, token: string): Promise<T> {
   if (!token || /[\r\n]/.test(token)) throw new Error("Invalid access token");
   const response = await fetch("https://classroom.googleapis.com/v1/" + path, {
     headers: { authorization: "Bearer " + token, accept: "application/json" },
+    signal: AbortSignal.timeout(15000),
   });
   if (response.status === 401) throw new Error("Google access token expired or revoked");
   if (response.status === 403) throw new Error("Classroom permission denied or quota exceeded");
   if (!response.ok) throw new Error("Google Classroom API request failed: " + response.status);
   return (await response.json()) as T;
+}
+export async function getAssignment(token: string, courseId: string, assignmentId: string): Promise<ClassroomAssignment> {
+  if (![courseId,assignmentId].every(id=>/^[-\w]{1,256}$/.test(id))) throw new Error('Invalid assignment id');
+  return apiGet<ClassroomAssignment>('courses/'+encodeURIComponent(courseId)+'/courseWork/'+encodeURIComponent(assignmentId),token);
 }
 export async function listCourses(token: string): Promise<ClassroomCourse[]> {
   const results: ClassroomCourse[] = [];

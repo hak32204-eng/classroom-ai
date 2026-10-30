@@ -1,6 +1,16 @@
 name = "classroom-ai"
 main = "src/index.ts"
 compatibility_date = "2026-10-01"
+compatibility_flags = ["global_fetch_strictly_public"]
+
+[vars]
+AUTH_ENABLED = "false"
+
+[triggers]
+crons = ["17 3 * * *"]
+
+[observability]
+enabled = false
 
 # Do not put OAuth secrets here. Set them with `npx wrangler secret put ...`.
 
