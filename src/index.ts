@@ -84,7 +84,8 @@ export default {
       keepReplay = response.ok;
       const secured = new Response(response.body, response);
       secured.headers.set('cache-control', 'no-store');
-      secured.headers.set('referrer-policy', 'no-referrer');
+      // no-referrer makes browsers send Origin: null for ordinary form POSTs.
+      secured.headers.set('referrer-policy', secured.headers.get('content-type')?.startsWith('text/html') ? 'same-origin' : 'no-referrer');
       secured.headers.set('x-content-type-options', 'nosniff');
       return secured;
     } catch {
