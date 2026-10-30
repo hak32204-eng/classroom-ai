@@ -1,6 +1,6 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { encryptSecret, decryptSecret, sha256hex } from './auth-storage.ts';
-import { generateOpaqueToken, CLASSROOM_READ_SCOPES } from './google-oauth.ts';
+import { generateOpaqueToken, hasRequiredClassroomScopes } from './google-oauth.ts';
 import type { GoogleTokenResponse } from './google-oauth.ts';
 import { googleConfig } from './env.ts';
 import type { Env, AccountProps } from './env.ts';
@@ -15,8 +15,7 @@ export async function googleSubject(tokens:GoogleTokenResponse,nonce:string,clie
   return sha256hex(JSON.stringify(['https://accounts.google.com',payload.sub]));
 }
 export function checkGoogleScopes(tokens:GoogleTokenResponse) {
-  const scopes=new Set(tokens.scope?.split(' ') ?? []);
-  if (!CLASSROOM_READ_SCOPES.every(s=>scopes.has(s))) throw new Error('Required Google permissions missing');
+  if (!hasRequiredClassroomScopes(tokens.scope)) throw new Error('Required Google permissions missing');
 }
 export async function connectAccount(env:Env,userId:string,tokens:GoogleTokenResponse):Promise<AccountProps> {
   checkGoogleScopes(tokens);
@@ -56,7 +55,7 @@ export async function accountAccessToken(env:Env,props:AccountProps):Promise<str
   }
   const data=await response.json() as GoogleTokenResponse;
   if (!data.access_token || data.token_type!=='Bearer' || !Number.isFinite(data.expires_in) || data.expires_in<=0) throw new Error('Invalid Google token response');
-  if (data.scope && !CLASSROOM_READ_SCOPES.every(s=>data.scope!.split(' ').includes(s))) throw new Error('Google permissions changed; reconnect');
+  if (data.scope && !hasRequiredClassroomScopes(data.scope)) throw new Error('Google permissions changed; reconnect');
   if (data.refresh_token) {
     const cipher=await encryptSecret(data.refresh_token,env.TOKEN_ENCRYPTION_KEY!);
     await env.DB.prepare('UPDATE google_credentials SET refresh_token_ciphertext = ? WHERE user_id = ? AND credential_version = ?')

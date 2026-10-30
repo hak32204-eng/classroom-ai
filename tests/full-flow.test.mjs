@@ -4,7 +4,7 @@ import { generateKeyPair,exportJWK,SignJWT } from 'jose';
 import worker from '../src/index.ts';
 import { D1OAuthStore } from '../src/d1-kv.ts';
 import { ORIGIN,RESOURCE } from '../src/env.ts';
-import { CLASSROOM_READ_SCOPES,generateOpaqueToken,pkceChallenge } from '../src/google-oauth.ts';
+import { CLASSROOM_READ_SCOPES,generateOpaqueToken,pkceChallenge,hasRequiredClassroomScopes } from '../src/google-oauth.ts';
 import { database } from './sql-db.mjs';
 
 const context=()=>({waitUntil(){},passThroughOnException(){},props:{}});
@@ -62,7 +62,7 @@ test('official OAuth provider + D1: consent, Google identity, tokens, isolation,
       if(body.get('grant_type')==='authorization_code'){
         exchanges++;const subject=body.get('code');
         const id=await new SignJWT({nonce:nonces.get(subject)}).setProtectedHeader({alg:'RS256',kid:'google-test'}).setIssuer('https://accounts.google.com').setAudience('google-client').setSubject(subject).setIssuedAt().setExpirationTime('5m').sign(privateKey);
-        return Response.json({access_token:'access-'+subject,refresh_token:'refresh-'+subject,id_token:id,scope:'openid '+CLASSROOM_READ_SCOPES.join(' '),token_type:'Bearer',expires_in:3600});
+        return Response.json({access_token:'access-'+subject,refresh_token:'refresh-'+subject,id_token:id,scope:'openid '+CLASSROOM_READ_SCOPES[0]+' https://www.googleapis.com/auth/classroom.student-submissions.me.readonly',token_type:'Bearer',expires_in:3600});
       }
       return Response.json({access_token:body.get('refresh_token').replace('refresh-','access-'),token_type:'Bearer',expires_in:3600});
     }
@@ -139,6 +139,16 @@ test('D1 store preserves metadata, paginates, expires and atomically consumes tr
     await store.put('transaction:test','secret',{expirationTtl:60});
     const values=await Promise.all([store.get('transaction:test'),store.get('transaction:test')]);assert.deepEqual(values.sort(),['secret',null].sort());
   }finally{sql.close();}
+});
+
+test('Google read scopes accept the canonical alias but require courses and own read-only access',()=>{
+  const courses=CLASSROOM_READ_SCOPES[0];
+  assert.equal(hasRequiredClassroomScopes(CLASSROOM_READ_SCOPES.join(' ')),true);
+  assert.equal(hasRequiredClassroomScopes(courses+' https://www.googleapis.com/auth/classroom.student-submissions.me.readonly'),true);
+  assert.equal(hasRequiredClassroomScopes(courses),false);
+  assert.equal(hasRequiredClassroomScopes('https://www.googleapis.com/auth/classroom.student-submissions.me.readonly'),false);
+  assert.equal(hasRequiredClassroomScopes(courses+' https://www.googleapis.com/auth/classroom.coursework.me'),false);
+  assert.equal(hasRequiredClassroomScopes(courses+' https://www.googleapis.com/auth/classroom.coursework.students.readonly'),false);
 });
 
 test('configuration fails closed; origin, request size and registration rate are bounded',async()=>{

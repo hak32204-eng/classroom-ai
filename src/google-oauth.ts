@@ -14,6 +14,18 @@ export const CLASSROOM_READ_SCOPES = [
   "https://www.googleapis.com/auth/classroom.coursework.me.readonly",
 ] as const;
 
+/** Google may return the documented student-submissions alias for the
+ * requested coursework.me.readonly scope. Do not accept write/teacher scopes.
+ * https://developers.google.com/workspace/classroom/guides/auth
+ */
+export function hasRequiredClassroomScopes(scope?:string):boolean {
+  const granted=new Set(scope?.split(/\s+/).filter(Boolean) ?? []);
+  return granted.has(CLASSROOM_READ_SCOPES[0]) && (
+    granted.has(CLASSROOM_READ_SCOPES[1]) ||
+    granted.has('https://www.googleapis.com/auth/classroom.student-submissions.me.readonly')
+  );
+}
+
 export interface OAuthConfiguration {
   clientId: string;
   clientSecret: string;
