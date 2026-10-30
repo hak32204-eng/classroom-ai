@@ -51,7 +51,8 @@ async function limited(request: Request, env: Env): Promise<boolean> {
 export default {
   async fetch(request: Request, rawEnv: Partial<Env>, ctx?: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === '/health' && request.method === 'GET') return Response.json({ ok: true, authEnabled: rawEnv.AUTH_ENABLED === 'true' }, { headers: { 'cache-control': 'no-store' } });
+    if (url.pathname === '/health' && request.method === 'GET') return Response.json({ ok: true, authEnabled: rawEnv.AUTH_ENABLED === 'true',
+      configured:!!(rawEnv.DB && rawEnv.GOOGLE_CLIENT_ID && rawEnv.GOOGLE_CLIENT_SECRET && rawEnv.TOKEN_ENCRYPTION_KEY),version:'0.3.0' }, { headers: { 'cache-control': 'no-store' } });
     if (request.method === 'GET') { const info = infoPage(url.pathname); if (info) return info; }
     if (rawEnv.AUTH_ENABLED !== 'true' || !rawEnv.DB || !rawEnv.GOOGLE_CLIENT_ID || !rawEnv.GOOGLE_CLIENT_SECRET || !rawEnv.TOKEN_ENCRYPTION_KEY)
       return new Response('Connector setup is incomplete', { status: 503, headers: { 'cache-control': 'no-store' } });
