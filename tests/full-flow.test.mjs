@@ -32,6 +32,8 @@ async function start(env,client,cookies){
   const html=await consent.text();assert.ok(html.includes('Test &#60;client&#62;'));
   assert.equal(consent.headers.get('x-frame-options'),'DENY');
   assert.equal(consent.headers.get('referrer-policy'),'same-origin');
+  assert.match(consent.headers.get('content-security-policy'),/form-action 'self' https:\/\/accounts\.google\.com https:\/\/client\.example;/);
+  assert.doesNotMatch(consent.headers.get('content-security-policy'),/evil\.example|\*/);
   const handle=/name="handle" value="([^"]+)"/.exec(html)[1];
   const approved=await send(env,'/authorize',form({decision:'approve',handle}),cookies);
   assert.equal(approved.status,302,await approved.clone().text());
@@ -115,6 +117,7 @@ test('official OAuth provider + D1: consent, Google identity, tokens, isolation,
     const bobAfter=await (await tool(env,bobToken.access_token,'list_courses')).json();assert.match(bobAfter.result.content[0].text,/Only bob/);
     const accountPage=await send(env,'/account',{},otherJar);assert.equal(accountPage.status,200);
     assert.equal(accountPage.headers.get('referrer-policy'),'same-origin');
+    assert.match(accountPage.headers.get('content-security-policy'),/form-action 'self';/);
     const csrf=/name="csrf" value="([^"]+)"/.exec(await accountPage.text())[1];
     assert.equal((await send(env,'/account/disconnect',form({csrf:'forged'}),otherJar)).status,403);
     assert.equal(sql.prepare('SELECT count(*) AS n FROM google_credentials').get().n,1);

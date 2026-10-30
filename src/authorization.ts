@@ -34,7 +34,7 @@ export async function authorizationRoutes(request:Request,env:Env):Promise<Respo
         ${details.redirectIsLoopback?'<p><strong>Доступ получит приложение на вашем компьютере.</strong></p>':''}
         <p>Разрешения: ${scopes.map(escapeHtml).join(', ')}. Отправка учебных работ не разрешается.</p>
         <p>Продолжайте только если вы сами начали подключение в нужном клиенте. <a href="/privacy">Конфиденциальность</a>.</p>
-        <form method="post" action="/authorize"><input type="hidden" name="handle" value="${escapeHtml(consent.handle)}"><button name="decision" value="approve">Продолжить с Google</button><button name="decision" value="deny">Отмена</button></form>`,consent.headers);
+        <form method="post" action="/authorize"><input type="hidden" name="handle" value="${escapeHtml(consent.handle)}"><button name="decision" value="approve">Продолжить с Google</button><button name="decision" value="deny">Отмена</button></form>`,consent.headers,200,original.redirectUri);
     }
     if(url.pathname==='/authorize' && request.method==='POST') {
       if(request.headers.get('origin')!==ORIGIN) return new Response('Forbidden',{status:403});

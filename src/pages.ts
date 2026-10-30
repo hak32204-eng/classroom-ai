@@ -1,8 +1,15 @@
 export const escapeHtml=(value:string)=>value.replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
-export function page(title:string,body:string,headers:Headers = new Headers(),status=200) {
+export function page(title:string,body:string,headers:Headers = new Headers(),status=200,validatedClientRedirect?:string) {
+  let formAction="'self'";
+  if(validatedClientRedirect) {
+    // Chromium checks the redirect chain of a form POST. This URI has already
+    // been matched against the registered OAuth client by parseAuthRequest().
+    const redirect=new URL(validatedClientRedirect);
+    formAction+=' https://accounts.google.com '+(redirect.origin==='null'?redirect.protocol:redirect.origin);
+  }
   headers.set('content-type','text/html; charset=utf-8');
   headers.set('cache-control','no-store');
-  headers.set('content-security-policy',"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
+  headers.set('content-security-policy',"default-src 'none'; style-src 'unsafe-inline'; form-action "+formAction+"; frame-ancestors 'none'; base-uri 'none'");
   headers.set('x-frame-options','DENY');
   // Preserve Origin on same-origin HTML form POSTs; send no Referer cross-origin.
   headers.set('referrer-policy','same-origin');
