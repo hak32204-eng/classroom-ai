@@ -6,7 +6,7 @@
 
 Worker `classroom-ai`, адрес `https://classroom-ai.hak32204.workers.dev`. D1 `classroom-ai-auth`, ID `5e43b117-460c-46b5-bce2-baf65a2b073d`, binding `DB` подтверждён в Dashboard. Конфигурация ветки содержит эти значения и `AUTH_ENABLED="false"`.
 
-Владелец выполнил `0001_auth.sql` вручную. Для OAuth нужны также таблицы и поле credential_version из `migrations/0002_mcp.sql`.
+Владелец выполнил `0001_auth.sql` вручную. 30 октября 2026 года через Dashboard выполнена также `0002_mcp.sql`: проверены oauth_kv, oauth_replays, request_limits, web_sessions, индекс idx_oauth_kv_expiry и поле google_credentials.credential_version. Обе миграции применены вручную, без учёта в Wrangler. Приведённые ниже команды миграции предназначены для новых баз; на текущей базе сначала согласуйте учёт уже выполненных миграций.
 
 ```sh
 npx wrangler login

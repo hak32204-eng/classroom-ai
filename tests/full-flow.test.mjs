@@ -84,7 +84,9 @@ test('official OAuth provider + D1: consent, Google identity, tokens, isolation,
     const completed=responses.find(r=>r.status===302);cookies.collect(completed);
     const redirect=new URL(completed.headers.get('location'));assert.equal(redirect.searchParams.get('state'),'client-state');
     const code=redirect.searchParams.get('code');
-    const token=await redeem(env,client,flow,code);
+    const redemptions=await Promise.all([1,2].map(()=>send(env,'/oauth/token',form({grant_type:'authorization_code',client_id:client.client_id,code,code_verifier:flow.verifier,redirect_uri:'https://client.example/callback',resource:RESOURCE}))));
+    assert.deepEqual(redemptions.map(r=>r.status).sort(),[200,400]);
+    const token=await redemptions.find(r=>r.status===200).json();
     assert.equal((await send(env,'/oauth/token',form({grant_type:'authorization_code',client_id:client.client_id,code,code_verifier:flow.verifier,redirect_uri:'https://client.example/callback'}))).status,400);
     const courses=await (await tool(env,token.access_token,'list_courses')).json();assert.match(courses.result.content[0].text,/Only alice/);
     const assignment=await (await tool(env,token.access_token,'get_assignment',{courseId:'course',assignmentId:'assignment'})).json();assert.match(assignment.result.content[0].text,/Assignment alice/);
@@ -109,6 +111,14 @@ test('official OAuth provider + D1: consent, Google identity, tokens, isolation,
     assert.equal(sql.prepare('SELECT count(*) AS n FROM google_credentials').get().n,1);
     const storage=JSON.stringify(sql.prepare('SELECT * FROM oauth_kv').all())+JSON.stringify(sql.prepare('SELECT * FROM google_credentials').all());
     assert.doesNotMatch(storage,/refresh-alice|refresh-bob|Only alice|Only bob|Assignment alice/);
+    const bobAfter=await (await tool(env,bobToken.access_token,'list_courses')).json();assert.match(bobAfter.result.content[0].text,/Only bob/);
+    const accountPage=await send(env,'/account',{},otherJar);assert.equal(accountPage.status,200);
+    const csrf=/name="csrf" value="([^"]+)"/.exec(await accountPage.text())[1];
+    assert.equal((await send(env,'/account/disconnect',form({csrf:'forged'}),otherJar)).status,403);
+    assert.equal(sql.prepare('SELECT count(*) AS n FROM google_credentials').get().n,1);
+    assert.equal((await send(env,'/account/disconnect',form({csrf}),otherJar)).status,200);
+    assert.equal(sql.prepare('SELECT count(*) AS n FROM google_credentials').get().n,0);
+    const bobRemoved=await (await tool(env,bobToken.access_token,'list_courses')).json();assert.equal(bobRemoved.result.isError,true);
   }finally{globalThis.fetch=original;sql.close();}
 });
 

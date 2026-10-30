@@ -18,13 +18,13 @@ MCP: `https://classroom-ai.hak32204.workers.dev/mcp`. Google callback: `https://
 Use Node.js 24 (native TypeScript stripping, module hooks and SQLite in tests).
 
 ```sh
-npm install --no-audit --no-fund
+npm ci --no-audit --no-fund
 npm run check
 npm test
 npx wrangler deploy --dry-run
 ```
 
-Tests use the real OAuth provider and SQLite SQL with mocked Google HTTP/JWK responses: two-account isolation, PKCE, browser binding, nonce checks, concurrent callback protection, code replay, refresh, revocation, validation and fail-closed setup. They do not prove real Google consent, Cloudflare runtime behavior or client compatibility. See [AUTH-SETUP.md](AUTH-SETUP.md) for the release checklist.
+Tests use the real OAuth provider and SQLite SQL with mocked Google HTTP/JWK responses: two-account isolation, PKCE, browser binding, nonce checks, concurrent callback/code protection, refresh, browser CSRF, revocation, validation and fail-closed setup. A separate local workerd smoke check passed for real D1 migrations, unauthorized MCP, discovery, DCR and browser consent. These checks do not prove real Google consent, remote D1 concurrency or client compatibility. See [AUTH-SETUP.md](AUTH-SETUP.md) for the release checklist.
 
 ## Limits and retention
 
