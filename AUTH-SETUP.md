@@ -20,6 +20,8 @@ OAuth KV-адаптер использует primary session D1. Callback пот
 
 ## Google и секреты
 
+30 октября 2026 года проверены проект `classroom-ai-513208`, Web OAuth client `Classroom AI Connector` и точный callback. Дополнительный Client Secret создан с подтверждением владельца и сохранён в Production Worker как Secret `GOOGLE_CLIENT_SECRET`; Dashboard подтвердил `Value encrypted`. Публичный `GOOGLE_CLIENT_ID` сохранён в Worker и синхронизирован с wrangler.toml. Значение секрета не хранится в репозитории. `TOKEN_ENCRYPTION_KEY` и включение тестового входа остаются следующими шагами.
+
 В Google Cloud нужны включённый Classroom API, Web OAuth client и точный redirect URI:
 
 ```text

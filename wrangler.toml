@@ -5,6 +5,7 @@ compatibility_flags = ["global_fetch_strictly_public"]
 
 [vars]
 AUTH_ENABLED = "false"
+GOOGLE_CLIENT_ID = "250718379860-307498lok2nns3q1hn2480b4ppstsbhi.apps.googleusercontent.com"
 
 [triggers]
 crons = ["17 3 * * *"]
