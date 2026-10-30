@@ -17,3 +17,9 @@ test('public setup offers one endpoint and secret-free configurations while MCP 
   const health=await (await worker.fetch(new Request('https://classroom-ai.hak32204.workers.dev/health'),{})).json();
   assert.equal(health.configured,false);assert.equal(health.authEnabled,false);
 });
+
+import {lmStudioInstallUrl} from '../src/setup.ts';
+test('LM Studio one-click install contains only the public remote-server URL',()=>{
+ const url=new URL(lmStudioInstallUrl);assert.equal(url.protocol,'lmstudio:');assert.equal(url.hostname,'add_mcp');assert.equal(url.searchParams.get('name'),'classroom-ai');
+ assert.deepEqual(JSON.parse(atob(url.searchParams.get('config'))),{url:'https://classroom-ai.hak32204.workers.dev/mcp'});
+});
