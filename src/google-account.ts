@@ -22,9 +22,13 @@ export async function connectAccount(env:Env,userId:string,tokens:GoogleTokenRes
   if (!tokens.refresh_token) throw new Error('Offline access was not granted');
   const version=generateOpaqueToken();
   const cipher=await encryptSecret(tokens.refresh_token,env.TOKEN_ENCRYPTION_KEY!);
-  await env.DB.prepare('INSERT INTO google_credentials (user_id,refresh_token_ciphertext,updated_at,credential_version) VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET refresh_token_ciphertext=excluded.refresh_token_ciphertext,updated_at=excluded.updated_at,credential_version=excluded.credential_version')
-    .bind(userId,cipher,Math.floor(Date.now()/1000),version).run();
-  return {userId,version};
+  // Additional MCP clients share the current account version. Only reconnecting
+  // after credentials were removed creates a new version, so revoked grants
+  // cannot regain access and signing in from Claude does not disconnect ChatGPT.
+  const saved=await env.DB.prepare("INSERT INTO google_credentials (user_id,refresh_token_ciphertext,updated_at,credential_version) VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET refresh_token_ciphertext=excluded.refresh_token_ciphertext,updated_at=excluded.updated_at,credential_version=CASE WHEN google_credentials.credential_version='' THEN excluded.credential_version ELSE google_credentials.credential_version END RETURNING credential_version")
+    .bind(userId,cipher,Math.floor(Date.now()/1000),version).first<{credential_version:string}>();
+  if(!saved?.credential_version) throw new Error('Credential storage unavailable');
+  return {userId,version:saved.credential_version};
 }
 export async function accountExists(env:Env,props:AccountProps) {
   if (!props || typeof props.userId!=='string' || typeof props.version!=='string' || !props.version) return false;

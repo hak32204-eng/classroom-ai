@@ -1,6 +1,8 @@
 # Настройка Classroom AI
 
-Код ветки реализует OAuth и MCP. Реальный вход Google и совместимость ChatGPT/Claude ещё не подтверждены. Успешная сборка не означает работающего подключения.
+Реальный вход Google, чтение курсов, списка и описания заданий, а также обновление MCP-токена проверены 30 октября 2026 года. Проверки внутри ChatGPT и Claude ещё не завершены. Успешная сборка сама по себе не подтверждает совместимость клиентов.
+
+Тестовый Worker развернут из `deploy/google-oauth-test`, где `AUTH_ENABLED=true`. Ветка разработки сохраняет значение по умолчанию `false`. Google остаётся External/Testing с двумя тестовыми пользователями, добавленными с разрешения владельца. Публичный выпуск приложения Google не выполнялся.
 
 ## Cloudflare и схема
 
@@ -20,7 +22,7 @@ OAuth KV-адаптер использует primary session D1. Callback пот
 
 ## Google и секреты
 
-30 октября 2026 года проверены проект `classroom-ai-513208`, Web OAuth client `Classroom AI Connector` и точный callback. Дополнительный Client Secret создан с подтверждением владельца и сохранён в Production Worker как Secret `GOOGLE_CLIENT_SECRET`; Dashboard подтвердил `Value encrypted`. Публичный `GOOGLE_CLIENT_ID` сохранён в Worker и синхронизирован с wrangler.toml. Значение секрета не хранится в репозитории. `TOKEN_ENCRYPTION_KEY` и включение тестового входа остаются следующими шагами.
+30 октября 2026 года проверены проект `classroom-ai-513208`, Web OAuth client `Classroom AI Connector` и точный callback. Дополнительный Client Secret создан с подтверждением владельца и сохранён в Production Worker как Secret `GOOGLE_CLIENT_SECRET`; Dashboard подтвердил `Value encrypted`. `TOKEN_ENCRYPTION_KEY` создан из 32 случайных байтов и также сохранён как Secret. Публичный `GOOGLE_CLIENT_ID` сохранён в Worker и синхронизирован с wrangler.toml. Секреты не хранятся в репозитории.
 
 В Google Cloud нужны включённый Classroom API, Web OAuth client и точный redirect URI:
 
@@ -50,7 +52,7 @@ CLI поддерживает интерактивные `npx wrangler secret put
 4. Проверить discovery, DCR, PKCE, resource, отклонение неверных redirect URI/Origin/cookie и повторов code/state. Пройти Google consent тестового аккаунта. Google-токены нельзя использовать как MCP bearer tokens.
 5. Добавить в MCP-клиент сервер с URL https://classroom-ai.hak32204.workers.dev/mcp и OAuth. Проверить реальные собственные курсы, задания, refresh и переподключение отдельно в ChatGPT и Claude.
 6. Вторым тестовым аккаунтом проверить изоляцию. После disconnect_google с подтверждением старые токены не должны давать данные, refresh должен отклоняться, другой аккаунт должен продолжать работать.
-7. Проверить /account, браузерное удаление и Google revoke. Запасной путь отзыва: https://myaccount.google.com/permissions . Повторное подключение должно инвалидировать предыдущие клиенты.
+7. Проверить /account, браузерное удаление и Google revoke. Запасной путь отзыва: https://myaccount.google.com/permissions . Два клиента с одним Google-аккаунтом должны работать одновременно. После отзыва повторное подключение не должно восстанавливать доступ старых MCP grants.
 8. Проверить cron `17 3 * * *` и удаление истёкших записей. Затем решать вопрос публичного выпуска и Google verification. Не включать логи с code/state/cookies/tokens.
 
 Откат: выключить AUTH_ENABLED и развернуть проверенную версию. Это блокирует доступ, но не отзывает Google grants. Не удалять D1.

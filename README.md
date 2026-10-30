@@ -1,6 +1,6 @@
 # Classroom AI
 
-Google Classroom MCP connector for Cloudflare Workers and D1. This branch implements authorization and read-only tools. **Production activation and real ChatGPT/Claude compatibility are still pending.** `AUTH_ENABLED` defaults to `false`.
+Google Classroom MCP connector for Cloudflare Workers and D1. This branch implements authorization and read-only tools. A live test deployment runs from `deploy/google-oauth-test`, with Google restricted to the owner's approved test users. Real Google sign-in, courses, assignment details and MCP refresh passed on 2026-10-30. **In-client ChatGPT/Claude compatibility is still pending.** This development branch defaults `AUTH_ENABLED` to `false`.
 
 ## Implemented
 
@@ -8,7 +8,7 @@ Google Classroom MCP connector for Cloudflare Workers and D1. This branch implem
 - Browser-bound consent and callback, verified Google OIDC identity/nonce, AES-GCM encrypted refresh tokens and per-account credential versions.
 - Tools: `connection_status`, `list_courses`, `list_assignments`, `get_assignment`, `disconnect_google` (requires `confirm: true`). No submissions or grading.
 - Classroom data is fetched on demand; attachment contents are not downloaded. No coursework, AI responses or Google access tokens are persisted.
-- Disconnect deletes local Google credentials and browser sessions, attempts Google revocation and denies existing MCP grants data access/refresh. Reconnecting invalidates previous client connections, which must authorize again.
+- Additional MCP clients can connect to the same Google account concurrently. Disconnect deletes local Google credentials and browser sessions, attempts Google revocation and denies all existing MCP grants data access/refresh. Reconnecting after revocation creates a new credential version and never restores access to the old grants.
 - Public privacy/deletion pages, bounded requests, rate limits and daily expired-record cleanup.
 
 MCP: `https://classroom-ai.hak32204.workers.dev/mcp`. Google callback: `https://classroom-ai.hak32204.workers.dev/auth/google/callback`.
