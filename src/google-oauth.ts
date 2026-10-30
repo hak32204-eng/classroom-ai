@@ -98,8 +98,10 @@ export async function exchangeGoogleCode(
   if (!response.ok) throw new Error("Google OAuth exchange failed");
   const data: unknown = await response.json();
   if (!data || typeof data !== "object" || !("access_token" in data) ||
-      typeof data.access_token !== "string" || !("expires_in" in data) ||
-      typeof data.expires_in !== "number") {
+      typeof data.access_token !== "string" || !data.access_token || !("expires_in" in data) ||
+      typeof data.expires_in !== "number" || !Number.isFinite(data.expires_in) || data.expires_in <= 0 ||
+      !("token_type" in data) || data.token_type !== "Bearer" ||
+      ("refresh_token" in data && (typeof data.refresh_token !== "string" || !data.refresh_token))) {
     throw new Error("Invalid Google token response");
   }
   return data as GoogleTokenResponse;

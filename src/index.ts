@@ -24,7 +24,10 @@ export default {
     let msg: Req;
     try { msg = await req.json() as Req; }
     catch {return failure(null,-32700,"Parse error",400);}
-    if (msg.jsonrpc !== "2.0" || typeof msg.method !== "string") return failure(msg.id ?? null,-32600,"Invalid request",400);
+    if (!msg || typeof msg !== "object" || Array.isArray(msg) ||
+        msg.jsonrpc !== "2.0" || typeof msg.method !== "string" ||
+        (msg.id !== undefined && msg.id !== null && typeof msg.id !== "string" && typeof msg.id !== "number"))
+      return failure(null,-32600,"Invalid request",400);
     if (msg.id === undefined) return new Response(null,{status:202,headers});
     const id=msg.id;
     switch(msg.method){
