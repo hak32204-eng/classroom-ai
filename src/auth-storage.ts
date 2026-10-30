@@ -32,7 +32,9 @@ function toBase64(data: Uint8Array): string {
 async function encryptionKey(encodedKey: string): Promise<CryptoKey> {
   const raw = fromBase64(encodedKey);
   if (raw.byteLength !== 32) throw new Error("Encryption key must be 32 bytes");
-  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+  const keyBytes = new Uint8Array(new ArrayBuffer(32));
+  keyBytes.set(raw);
+  return crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 export async function encryptSecret(secret: string, encodedKey: string): Promise<string> {
   if (!secret) throw new Error("Empty secret");
