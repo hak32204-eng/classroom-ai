@@ -2,6 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { googleAuthorizationUrl, generateOpaqueToken, pkceChallenge, CLASSROOM_READ_SCOPES, exchangeGoogleCode, GOOGLE_REDIRECT_URI } from "../src/google-oauth.ts";
 import { listCourses, listAssignments } from "../src/classroom.ts";
+import { TEACHER_READ_SCOPE } from '../src/google-oauth.ts';
+test('teacher access is opt-in and never silently added to ordinary Google consent',()=>{
+  const normal=new URL(googleAuthorizationUrl('client',GOOGLE_REDIRECT_URI,'state','challenge'));
+  assert.ok(!normal.searchParams.get('scope').includes(TEACHER_READ_SCOPE));
+  const teachers=new URL(googleAuthorizationUrl('client',GOOGLE_REDIRECT_URI,'state','challenge',true));
+  assert.ok(teachers.searchParams.get('scope').includes(TEACHER_READ_SCOPE));
+});
 
 test("OAuth URL requires read-only scopes, state, and PKCE", async () => {
   const state = generateOpaqueToken();

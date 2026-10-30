@@ -1,5 +1,22 @@
-name = "classroom-ai-mcp"
+name = "classroom-ai"
 main = "src/index.ts"
 compatibility_date = "2026-10-01"
+compatibility_flags = ["global_fetch_strictly_public"]
+
+[vars]
+AUTH_ENABLED = "false"
+GOOGLE_CLIENT_ID = "250718379860-307498lok2nns3q1hn2480b4ppstsbhi.apps.googleusercontent.com"
+
+[triggers]
+crons = ["17 3 * * *"]
+
+[observability]
+enabled = false
 
 # Do not put OAuth secrets here. Set them with `npx wrangler secret put ...`.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "classroom-ai-auth"
+database_id = "5e43b117-460c-46b5-bce2-baf65a2b073d"
+migrations_dir = "migrations"

@@ -1,0 +1,9 @@
+export const MCP_URL='https://classroom-ai.hak32204.workers.dev/mcp';
+export const lmStudioConfiguration={mcpServers:{'classroom-ai':{url:MCP_URL}}};
+export const lmStudioInstallUrl='lmstudio://add_mcp?name=classroom-ai&config='+encodeURIComponent(btoa(JSON.stringify(lmStudioConfiguration.mcpServers['classroom-ai'])));
+export const setupProfiles={
+  chatgpt:{name:'ChatGPT',verification:'live_verified',steps:['Плагины → Добавить → Добавить пользовательский сервер MCP','Название: Classroom AI. Вставьте адрес сервера и выберите OAuth','Подтвердите подключение, войдите в Google и выберите Classroom AI в чате'],source:'https://developers.openai.com/plugins/deploy/connect-chatgpt'},
+  claude:{name:'Claude',verification:'pending_live_check',steps:['Откройте Customize → Connectors → Add custom connector','Вставьте адрес сервера, выберите вход сейчас и автоматическую регистрацию DCR','Войдите в Google и включите коннектор в чате'],source:'https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp'},
+  lmstudio:{name:'LLaMA через LM Studio',verification:'configuration_only',steps:['Установите и откройте актуальную версию LM Studio с поддержкой MCP OAuth','Нажмите кнопку «Добавить Classroom AI в LM Studio» ниже и подтвердите добавление сервера','Пройдите OAuth в открывшемся браузере. Выберите модель с поддержкой вызова инструментов'],source:'https://lmstudio.ai/docs/integrations/mcp-remote'},
+  openwebui:{name:'LLaMA через Open WebUI',verification:'configuration_only',steps:['Администратор: Settings → Admin → Integrations → External Tool Servers → Add Connection','Тип: MCP (Streamable HTTP). Адрес сервера: указанный ниже. Авторизация: OAuth 2.1 с DCR; Resource: Automatic','Сохраните подключение и войдите через Google под своим аккаунтом. Для сохранения входа после перезапуска администратору нужен постоянный WEBUI_SECRET_KEY'],source:'https://docs.openwebui.com/features/extensibility/mcp/'},
+};

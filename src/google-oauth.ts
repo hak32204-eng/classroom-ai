@@ -13,6 +13,19 @@ export const CLASSROOM_READ_SCOPES = [
   "https://www.googleapis.com/auth/classroom.courses.readonly",
   "https://www.googleapis.com/auth/classroom.coursework.me.readonly",
 ] as const;
+export const TEACHER_READ_SCOPE = 'https://www.googleapis.com/auth/classroom.rosters.readonly';
+
+/** Google may return the documented student-submissions alias for the
+ * requested coursework.me.readonly scope. Do not accept write/teacher scopes.
+ * https://developers.google.com/workspace/classroom/guides/auth
+ */
+export function hasRequiredClassroomScopes(scope?:string):boolean {
+  const granted=new Set(scope?.split(/\s+/).filter(Boolean) ?? []);
+  return granted.has(CLASSROOM_READ_SCOPES[0]) && (
+    granted.has(CLASSROOM_READ_SCOPES[1]) ||
+    granted.has('https://www.googleapis.com/auth/classroom.student-submissions.me.readonly')
+  );
+}
 
 export interface OAuthConfiguration {
   clientId: string;
@@ -53,6 +66,7 @@ export function googleAuthorizationUrl(
   redirectUri: string,
   state: string,
   challenge: string,
+  includeTeachers = false,
 ): string {
   if (!clientId || !state || !challenge || !redirectUri.startsWith("https://"))
     throw new Error("Missing OAuth parameters");
@@ -62,7 +76,7 @@ export function googleAuthorizationUrl(
   u.searchParams.set("response_type", "code");
   u.searchParams.set("access_type", "offline");
   u.searchParams.set("prompt", "consent");
-  u.searchParams.set("scope", CLASSROOM_READ_SCOPES.join(" "));
+  u.searchParams.set("scope", [...CLASSROOM_READ_SCOPES,...(includeTeachers ? [TEACHER_READ_SCOPE] : [])].join(" "));
   u.searchParams.set("state", state);
   u.searchParams.set("code_challenge", challenge);
   u.searchParams.set("code_challenge_method", "S256");
@@ -94,12 +108,15 @@ export async function exchangeGoogleCode(
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: form,
+    signal: AbortSignal.timeout(15000),
   });
   if (!response.ok) throw new Error("Google OAuth exchange failed");
   const data: unknown = await response.json();
   if (!data || typeof data !== "object" || !("access_token" in data) ||
-      typeof data.access_token !== "string" || !("expires_in" in data) ||
-      typeof data.expires_in !== "number") {
+      typeof data.access_token !== "string" || !data.access_token || !("expires_in" in data) ||
+      typeof data.expires_in !== "number" || !Number.isFinite(data.expires_in) || data.expires_in <= 0 ||
+      !("token_type" in data) || data.token_type !== "Bearer" ||
+      ("refresh_token" in data && (typeof data.refresh_token !== "string" || !data.refresh_token))) {
     throw new Error("Invalid Google token response");
   }
   return data as GoogleTokenResponse;
