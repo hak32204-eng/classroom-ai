@@ -13,6 +13,7 @@ export const CLASSROOM_READ_SCOPES = [
   "https://www.googleapis.com/auth/classroom.courses.readonly",
   "https://www.googleapis.com/auth/classroom.coursework.me.readonly",
 ] as const;
+export const TEACHER_READ_SCOPE = 'https://www.googleapis.com/auth/classroom.rosters.readonly';
 
 /** Google may return the documented student-submissions alias for the
  * requested coursework.me.readonly scope. Do not accept write/teacher scopes.
@@ -65,6 +66,7 @@ export function googleAuthorizationUrl(
   redirectUri: string,
   state: string,
   challenge: string,
+  includeTeachers = false,
 ): string {
   if (!clientId || !state || !challenge || !redirectUri.startsWith("https://"))
     throw new Error("Missing OAuth parameters");
@@ -74,7 +76,7 @@ export function googleAuthorizationUrl(
   u.searchParams.set("response_type", "code");
   u.searchParams.set("access_type", "offline");
   u.searchParams.set("prompt", "consent");
-  u.searchParams.set("scope", CLASSROOM_READ_SCOPES.join(" "));
+  u.searchParams.set("scope", [...CLASSROOM_READ_SCOPES,...(includeTeachers ? [TEACHER_READ_SCOPE] : [])].join(" "));
   u.searchParams.set("state", state);
   u.searchParams.set("code_challenge", challenge);
   u.searchParams.set("code_challenge_method", "S256");

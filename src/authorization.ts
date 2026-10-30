@@ -34,7 +34,7 @@ export async function authorizationRoutes(request:Request,env:Env):Promise<Respo
         ${details.redirectIsLoopback?'<p><strong>Доступ получит приложение на вашем компьютере.</strong></p>':''}
         <p>Разрешения: ${scopes.map(escapeHtml).join(', ')}. Отправка учебных работ не разрешается.</p>
         <p>Продолжайте только если вы сами начали подключение в нужном клиенте. <a href="/privacy">Конфиденциальность</a>.</p>
-        <form method="post" action="/authorize"><input type="hidden" name="handle" value="${escapeHtml(consent.handle)}"><button name="decision" value="approve">Продолжить с Google</button><button name="decision" value="deny">Отмена</button></form>`,consent.headers,200,original.redirectUri);
+        <form method="post" action="/authorize"><input type="hidden" name="handle" value="${escapeHtml(consent.handle)}"><p><label><input type="checkbox" name="includeTeachers" value="yes"> Автозаполнение преподавателя для титульного листа</label></p><p>Необязательно: Google запросит classroom.rosters.readonly — чтение состава курсов, включая преподавателей и учащихся. Этот коннектор использует его только для чтения имён преподавателей и передаёт их выбранному AI-клиенту. Без этого разрешения имя можно указать вручную или взять из подтверждённого образца.</p><button name="decision" value="approve">Продолжить с Google</button><button name="decision" value="deny">Отмена</button></form>`,consent.headers,200,original.redirectUri);
     }
     if(url.pathname==='/authorize' && request.method==='POST') {
       if(request.headers.get('origin')!==ORIGIN) return new Response('Forbidden',{status:403});
@@ -47,7 +47,7 @@ export async function authorizationRoutes(request:Request,env:Env):Promise<Respo
       const verifier=generateOpaqueToken(48), nonce=generateOpaqueToken();
       const next=await oauth.beginUpstream(approved.request,{data:{verifier,nonce},headers:approved.headers});
       const config=googleConfig(env);
-      const google=new URL(googleAuthorizationUrl(config.clientId,config.redirectUri,next.state,await pkceChallenge(verifier)));
+      const google=new URL(googleAuthorizationUrl(config.clientId,config.redirectUri,next.state,await pkceChallenge(verifier),form.get('includeTeachers')==='yes'));
       google.searchParams.set('scope','openid '+google.searchParams.get('scope'));
       google.searchParams.set('nonce',nonce);
       next.headers.set('location',google.toString());

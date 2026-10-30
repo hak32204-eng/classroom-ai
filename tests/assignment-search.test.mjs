@@ -20,6 +20,12 @@ test('search joins courses, excludes archives, searches Russian text and sorts U
     const filtered=await searchAssignments('token',{course:'БАЗЫ',query:'расчет',dueFrom:'2026-10-31',dueTo:'2026-10-31'});
     assert.deepEqual(filtered.assignments.map(a=>a.assignmentId),['2']);
     assert.equal(filtered.submissionStatus,'not_available');
+    const next=await searchAssignments('token',{query:'sql',limit:2,offset:2});
+    assert.deepEqual(next.assignments.map(a=>a.assignmentId),['3']);assert.equal(next.nextOffset,null);
+    const local=await searchAssignments('token',{dueFrom:'2026-11-01',dueTo:'2026-11-01',timezone:'Europe/Moscow'});
+    assert.deepEqual(local.assignments.map(a=>a.assignmentId),['2']);
+    const undated=await searchAssignments('token',{deadline:'without_deadline'});
+    assert.deepEqual(undated.assignments.map(a=>a.assignmentId),['3']);
   } finally {globalThis.fetch=original;}
 });
 test('failed courses are explicitly reported without leaking upstream errors',async()=>{
@@ -29,7 +35,7 @@ test('failed courses are explicitly reported without leaking upstream errors',as
   finally {globalThis.fetch=original;}
 });
 test('MCP search rejects invalid filters before accessing credentials',async()=>{
-  for(const args of [{dueFrom:'2026-02-30'},{dueFrom:'2026-11-01',dueTo:'2026-10-01'},{limit:101},{limit:1.5},{query:4},{includeArchived:'true'},{unexpected:true}]) {
+  for(const args of [{dueFrom:'2026-02-30'},{dueFrom:'2026-11-01',dueTo:'2026-10-01'},{limit:101},{limit:1.5},{query:4},{includeArchived:'true'},{unexpected:true},{timezone:'Bad/Zone'},{offset:-1},{deadline:'submitted'}]) {
     const response=await mcpRequest(new Request('https://app.example/mcp',{method:'POST',body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'search_assignments',arguments:args}})}),{},{},['classroom:read']);
     assert.equal((await response.json()).error.code,-32602);
   }
