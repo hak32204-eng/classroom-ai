@@ -31,6 +31,7 @@ async function start(env,client,cookies){
   assert.equal(consent.status,200,await consent.clone().text());
   const html=await consent.text();assert.ok(html.includes('Test &#60;client&#62;'));
   assert.equal(consent.headers.get('x-frame-options'),'DENY');
+  assert.equal(consent.headers.get('referrer-policy'),'same-origin');
   const handle=/name="handle" value="([^"]+)"/.exec(html)[1];
   const approved=await send(env,'/authorize',form({decision:'approve',handle}),cookies);
   assert.equal(approved.status,302,await approved.clone().text());
@@ -113,6 +114,7 @@ test('official OAuth provider + D1: consent, Google identity, tokens, isolation,
     assert.doesNotMatch(storage,/refresh-alice|refresh-bob|Only alice|Only bob|Assignment alice/);
     const bobAfter=await (await tool(env,bobToken.access_token,'list_courses')).json();assert.match(bobAfter.result.content[0].text,/Only bob/);
     const accountPage=await send(env,'/account',{},otherJar);assert.equal(accountPage.status,200);
+    assert.equal(accountPage.headers.get('referrer-policy'),'same-origin');
     const csrf=/name="csrf" value="([^"]+)"/.exec(await accountPage.text())[1];
     assert.equal((await send(env,'/account/disconnect',form({csrf:'forged'}),otherJar)).status,403);
     assert.equal(sql.prepare('SELECT count(*) AS n FROM google_credentials').get().n,1);
@@ -141,6 +143,7 @@ test('configuration fails closed; origin, request size and registration rate are
   try{
     assert.equal((await worker.fetch(new Request(RESOURCE),{})).status,503);
     assert.equal((await send(env,'/mcp',{headers:{origin:'https://evil.example'}})).status,403);
+    assert.equal((await send(env,'/authorize',{method:'POST',headers:{origin:'null'}})).status,403);
     assert.equal((await send(env,'/mcp',{method:'POST',body:'x'.repeat(70000)})).status,413);
     for(let n=0;n<10;n++)assert.equal((await send(env,'/oauth/register',{method:'POST',headers:{'content-type':'application/json'},body:'{}'})).status,400);
     assert.equal((await send(env,'/oauth/register',{method:'POST',body:'{}'})).status,429);

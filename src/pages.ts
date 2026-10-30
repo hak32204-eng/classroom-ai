@@ -4,7 +4,8 @@ export function page(title:string,body:string,headers:Headers = new Headers(),st
   headers.set('cache-control','no-store');
   headers.set('content-security-policy',"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
   headers.set('x-frame-options','DENY');
-  headers.set('referrer-policy','no-referrer');
+  // Preserve Origin on same-origin HTML form POSTs; send no Referer cross-origin.
+  headers.set('referrer-policy','same-origin');
   headers.set('x-content-type-options','nosniff');
   return new Response('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>'+escapeHtml(title)+'</title><style>body{font:18px/1.6 system-ui;margin:48px auto;padding:0 24px;max-width:720px;color:#17202a}button{font:inherit;margin:8px;padding:10px 20px}a{color:#1646a0}code{overflow-wrap:anywhere}</style><main><h1>'+escapeHtml(title)+'</h1>'+body+'</main></html>',{status,headers});
 }
