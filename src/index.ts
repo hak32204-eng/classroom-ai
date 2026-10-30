@@ -45,4 +45,4 @@ export default {
       default: return failure(id,-32601,"Method not found");
     }
   }
-} satisfies ExportedHandler<Env>;
+};
