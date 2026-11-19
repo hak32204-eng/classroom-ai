@@ -177,3 +177,12 @@ test('configuration fails closed; origin, request size and registration rate are
     const privacy=await worker.fetch(new Request(ORIGIN+'/privacy'),{});assert.equal(privacy.status,200);assert.match(privacy.headers.get('content-security-policy'),/frame-ancestors 'none'/);
   }finally{sql.close();}
 });
+
+test('a registered client can start fresh consent after eight idle days', async (t) => {
+  const { db } = database();
+  const env = environment(db);
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  const client = await register(env);
+  t.mock.timers.tick(8 * 24 * 60 * 60 * 1000);
+  await start(env, client, jar());
+});
