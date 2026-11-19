@@ -13,7 +13,7 @@ const provider = new OAuthProvider<Env>({
   clientRegistrationEndpoint: '/oauth/register',
   scopesSupported: ['classroom:read', 'offline_access'], requiredScopes: ['classroom:read'],
   resourceMetadata: { resource: RESOURCE, authorization_servers: [ORIGIN] },
-  accessTokenTTL: 900, refreshTokenTTL: 604800, clientRegistrationTTL: 604800,
+  accessTokenTTL: 900, refreshTokenTTL: 604800, // Use the provider default (90 days) for client registration.
   clientIdMetadataDocumentEnabled: false,
   apiHandler: { async fetch(request, env, ctx) {
     const context = ctx as typeof ctx & { props: AccountProps; auth: { scope: string[] } };
